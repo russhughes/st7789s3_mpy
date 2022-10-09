@@ -15,7 +15,7 @@ I modified the original driver for one of my projects to add:
 - Drawing PNGs using the pngle library from https://github.com/kikuchan/pngle
 - Drawing and rotating Polygons and filled Polygons
 - Tracking bounds
-- Support TTGO T-Dispay-S3 with a parallel interface
+- Support for the TTGO T-Dispay-S3 with a parallel interface using a dedicated GPIO bundle for increased drawing speed.
 
 Included are 12 bitmap fonts derived from classic pc text mode fonts, 26
 Hershey vector fonts and several example programs for different devices.
@@ -24,7 +24,8 @@ Hershey vector fonts and several example programs for different devices.
 ## Pre-compiled firmware
 
 The firmware directory contains pre-compiled MicroPython v1.19.1-451-gbdbc44474 firmware compiled using
-ESP IDF v4.4. The firmware includes the st7789 C driver and several frozen python font files. See the README.md file in the fonts folder for more information about the font files.
+ESP IDF v4.4. The firmware includes the st7789 C driver and several frozen python font files. See the
+README.md file in the fonts folder for more information about the font files.
 
 
 ## Thanks go out to:
@@ -273,6 +274,11 @@ And then compile the module with specified USER_C_MODULES dir.
       decoded JPG image used (Rows * Columns * 2 bytes, 16bit colors in RGB565
       notation). Dynamic allocation is slower and can cause heap fragmentation,
       so garbage collection (GC) should be enabled.
+
+- deinit()
+
+    Frees memory used by buffers and deletes the dedicated GPIO bundle.  This method should be
+    called before reinitalizing the display without hard resetting the microcontroller.
 
 - `inversion_mode(bool)` Sets the display color inversion mode if True, clears
   the display color inversion mode if False.

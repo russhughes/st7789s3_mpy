@@ -88,16 +88,8 @@ typedef struct _st7789_rotation_t {
 typedef struct _st7789_ST7789_obj_t {
     mp_obj_base_t base;
 
-    mp_hal_pin_obj_t d7;
-    mp_hal_pin_obj_t d6;
-    mp_hal_pin_obj_t d5;
-    mp_hal_pin_obj_t d4;
-    mp_hal_pin_obj_t d3;
-    mp_hal_pin_obj_t d2;
-    mp_hal_pin_obj_t d1;
-    mp_hal_pin_obj_t d0;
-    mp_hal_pin_obj_t wr;
-    mp_hal_pin_obj_t rd;
+    mp_hal_pin_obj_t wr;        // write pin
+    mp_hal_pin_obj_t rd;        // read pin
 
     mp_file_t *fp;				// file object
 	uint16_t *pixel_buffer;		// resident buffer if buffer_size given

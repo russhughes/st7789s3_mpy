@@ -32,6 +32,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
+#include "driver/dedic_gpio.h"
 #include "py/obj.h"
 #include "py/objstr.h"
 #include "py/objmodule.h"
@@ -109,6 +110,35 @@
 	}
 
 //
+// dedicated GPIOs
+//
+
+#define TFT_D0	GPIO_NUM_39
+#define TFT_D1	GPIO_NUM_40
+#define TFT_D2	GPIO_NUM_41
+#define TFT_D3	GPIO_NUM_42
+#define TFT_D4	GPIO_NUM_45
+#define TFT_D5	GPIO_NUM_46
+#define TFT_D6	GPIO_NUM_47
+#define TFT_D7	GPIO_NUM_48
+
+int GPIOBundle_gpios[8] = {TFT_D0,TFT_D1,TFT_D2,TFT_D3,TFT_D4,TFT_D5,TFT_D6,TFT_D7};
+
+gpio_config_t io_conf = {
+    .mode = GPIO_MODE_OUTPUT,
+};
+
+// Create GPIOBundle, output only
+dedic_gpio_bundle_handle_t GPIOBundle = NULL;
+dedic_gpio_bundle_config_t GPIOBundle_config = {
+    .gpio_array = GPIOBundle_gpios,
+    .array_size = sizeof(GPIOBundle_gpios) / sizeof(GPIOBundle_gpios[0]),
+    .flags = {
+        .out_en = 1,
+    },
+};
+
+//
 // Default st7789 and st7735 display orientation tables
 // can be overridden during init(), madctl values
 // will be combined with color_mode
@@ -161,14 +191,7 @@ STATIC void write_bus(st7789_ST7789_obj_t *self, const uint8_t *buf, int len)
 		b = buf[i];
 
 		if (b != last) {
-			mp_hal_pin_write(self->d7, (b >> 7) & 1);
-			mp_hal_pin_write(self->d6, (b >> 6) & 1);
-			mp_hal_pin_write(self->d5, (b >> 5) & 1);
-			mp_hal_pin_write(self->d4, (b >> 4) & 1);
-			mp_hal_pin_write(self->d3, (b >> 3) & 1);
-			mp_hal_pin_write(self->d2, (b >> 2) & 1);
-			mp_hal_pin_write(self->d1, (b >> 1) & 1);
-			mp_hal_pin_write(self->d0, b & 1);
+		    dedic_gpio_bundle_write(GPIOBundle,0xff,b);
 			last = b;
 		}
 		WR_LOW();
@@ -185,7 +208,6 @@ STATIC void st7789_ST7789_print(const mp_print_t *print, mp_obj_t self_in, mp_pr
 
 STATIC void write_cmd(st7789_ST7789_obj_t *self, uint8_t cmd, const uint8_t *data, int len)
 {
-	fprintf(stderr, "write_cmd: %02x %d\n", cmd, len);
 	CS_LOW()
 	if (cmd) {
 		DC_LOW();
@@ -1186,10 +1208,9 @@ STATIC mp_obj_t st7789_ST7789_vscsad(mp_obj_t self_in, mp_obj_t vssa_in)
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(st7789_ST7789_vscsad_obj, st7789_ST7789_vscsad);
 
+
 STATIC mp_obj_t st7789_ST7789_init(mp_obj_t self_in)
 {
-	printf("init()\n"); fflush(stdout);
-
 	st7789_ST7789_obj_t *self = MP_OBJ_TO_PTR(self_in);
 
 	CS_HIGH();
@@ -1197,14 +1218,18 @@ STATIC mp_obj_t st7789_ST7789_init(mp_obj_t self_in)
 	WR_HIGH();
 	RD_HIGH();
 
-	mp_hal_pin_write(self->d7, 0);
-	mp_hal_pin_write(self->d6, 0);
-	mp_hal_pin_write(self->d5, 0);
-	mp_hal_pin_write(self->d4, 0);
-	mp_hal_pin_write(self->d3, 0);
-	mp_hal_pin_write(self->d2, 0);
-	mp_hal_pin_write(self->d1, 0);
-	mp_hal_pin_write(self->d0, 0);
+	// configure dedicated GPIO pins
+	for (int i = 0; i < sizeof(GPIOBundle_gpios) / sizeof(GPIOBundle_gpios[0]); i++)
+	{
+    	io_conf.pin_bit_mask = 1ULL << GPIOBundle_gpios[i];
+    	gpio_config(&io_conf);
+	}
+
+	// create dedicated GPIO bundle
+	dedic_gpio_new_bundle(&GPIOBundle_config, &GPIOBundle);
+
+    // Set all 8 bits low
+    dedic_gpio_bundle_write(GPIOBundle,0xff,0x00);
 
 	st7789_ST7789_hard_reset(self_in);
 	write_cmd(self, ST7789_SLPOUT, NULL, 0);
@@ -1224,14 +1249,14 @@ STATIC mp_obj_t st7789_ST7789_init(mp_obj_t self_in)
 	write_cmd(self, ST7789_NORON, NULL, 0);
 	mp_hal_delay_ms(10);
 
-	// const mp_obj_t args[] = {
-	// 	self_in,
-	// 	mp_obj_new_int(0),
-	// 	mp_obj_new_int(0),
-	// 	mp_obj_new_int(self->width),
-	// 	mp_obj_new_int(self->height),
-	// 	mp_obj_new_int(BLACK)};
-	// st7789_ST7789_fill_rect(6, args);
+	const mp_obj_t args[] = {
+		self_in,
+		mp_obj_new_int(0),
+		mp_obj_new_int(0),
+		mp_obj_new_int(self->width),
+		mp_obj_new_int(self->height),
+		mp_obj_new_int(BLACK)};
+	st7789_ST7789_fill_rect(6, args);
 
 	if (self->backlight)
 		mp_hal_pin_write(self->backlight, 1);
@@ -2332,6 +2357,24 @@ STATIC mp_obj_t st7789_ST7789_bounding(size_t n_args, const mp_obj_t *args)
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(st7789_ST7789_bounding_obj, 1, 3, st7789_ST7789_bounding);
 
+STATIC mp_obj_t st7789_ST7789_deinit(size_t n_args, const mp_obj_t *args)
+{
+	st7789_ST7789_obj_t *self = MP_OBJ_TO_PTR(args[0]);
+
+	m_free(self->work);
+	self->work = NULL;
+	m_free(self->pixel_buffer);
+	self->pixel_buffer = NULL;
+	if (GPIOBundle) {
+		dedic_gpio_del_bundle(GPIOBundle);
+		GPIOBundle = NULL;
+	}
+
+	return mp_const_none;
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(st7789_ST7789_deinit_obj, 1, 1, st7789_ST7789_deinit);
+
+
 STATIC const mp_rom_map_elem_t st7789_ST7789_locals_dict_table[] = {
 	{MP_ROM_QSTR(MP_QSTR_write), MP_ROM_PTR(&st7789_ST7789_write_obj)},
 	{MP_ROM_QSTR(MP_QSTR_write_len), MP_ROM_PTR(&st7789_ST7789_write_len_obj)},
@@ -2371,6 +2414,7 @@ STATIC const mp_rom_map_elem_t st7789_ST7789_locals_dict_table[] = {
 	{MP_ROM_QSTR(MP_QSTR_polygon), MP_ROM_PTR(&st7789_ST7789_polygon_obj)},
 	{MP_ROM_QSTR(MP_QSTR_fill_polygon), MP_ROM_PTR(&st7789_ST7789_fill_polygon_obj)},
 	{MP_ROM_QSTR(MP_QSTR_bounding), MP_ROM_PTR(&st7789_ST7789_bounding_obj)},
+	{MP_ROM_QSTR(MP_QSTR_deinit), MP_ROM_PTR(&st7789_ST7789_deinit_obj)},
 };
 STATIC MP_DEFINE_CONST_DICT(st7789_ST7789_locals_dict, st7789_ST7789_locals_dict_table);
 /* methods end */
@@ -2467,14 +2511,15 @@ mp_obj_t st7789_ST7789_make_new(const mp_obj_type_t *type,
 		mp_raise_ValueError(MP_ERROR_TEXT("must specify WR pin and RD pin"));
 	}
 
-	self->d7 = mp_hal_get_pin_obj(args[ARG_d7].u_obj);
-	self->d6 = mp_hal_get_pin_obj(args[ARG_d6].u_obj);
-	self->d5 = mp_hal_get_pin_obj(args[ARG_d5].u_obj);
-	self->d4 = mp_hal_get_pin_obj(args[ARG_d4].u_obj);
-	self->d3 = mp_hal_get_pin_obj(args[ARG_d3].u_obj);
-	self->d2 = mp_hal_get_pin_obj(args[ARG_d2].u_obj);
-	self->d1 = mp_hal_get_pin_obj(args[ARG_d1].u_obj);
-	self->d0 = mp_hal_get_pin_obj(args[ARG_d0].u_obj);
+	GPIOBundle_gpios[7] = machine_pin_get_id(args[ARG_d7].u_obj);
+	GPIOBundle_gpios[6] = machine_pin_get_id(args[ARG_d6].u_obj);
+	GPIOBundle_gpios[5] = machine_pin_get_id(args[ARG_d5].u_obj);
+	GPIOBundle_gpios[4] = machine_pin_get_id(args[ARG_d4].u_obj);
+	GPIOBundle_gpios[3] = machine_pin_get_id(args[ARG_d3].u_obj);
+	GPIOBundle_gpios[2] = machine_pin_get_id(args[ARG_d2].u_obj);
+	GPIOBundle_gpios[1] = machine_pin_get_id(args[ARG_d1].u_obj);
+	GPIOBundle_gpios[0] = machine_pin_get_id(args[ARG_d0].u_obj);
+
 	self->wr = mp_hal_get_pin_obj(args[ARG_wr].u_obj);
 	self->rd = mp_hal_get_pin_obj(args[ARG_rd].u_obj);
 
