@@ -70,42 +70,45 @@ GREETINGS = cycle([
 def main():
     """Scroll greetings on the display cycling thru Hershey fonts and colors"""
 
-    tft.init()
-    tft.fill(st7789.BLACK)
+    try:
+        tft.init()
+        tft.fill(st7789.BLACK)
 
-    height = tft.height()
-    width = tft.width()
+        height = tft.height()
+        width = tft.width()
 
-    # Set up scrolling area
-    tfa = tft_config.TFA
-    bfa = tft_config.BFA
-    tft.vscrdef(tfa, height, bfa)
+        # Set up scrolling area
+        tfa = tft_config.TFA
+        bfa = tft_config.BFA
+        tft.vscrdef(tfa, height, bfa)
 
-    scroll = 0
-    to_scroll = 0
+        scroll = 0
+        to_scroll = 0
 
-    while True:
+        while True:
 
-        # if we have scrolled high enough for the next greeting
-        if to_scroll == 0:
-            font = next(FONTS)                              # get the next font
-            greeting = next(GREETINGS)                      # get the next greeting
-            color = next(COLORS)                            # get the next color
-            lines = greeting[2]                             # number of lines in the greeting
-            to_scroll = lines * font[1] + 8                 # number of rows to scroll
+            # if we have scrolled high enough for the next greeting
+            if to_scroll == 0:
+                font = next(FONTS)                              # get the next font
+                greeting = next(GREETINGS)                      # get the next greeting
+                color = next(COLORS)                            # get the next color
+                lines = greeting[2]                             # number of lines in the greeting
+                to_scroll = lines * font[1] + 8                 # number of rows to scroll
 
-            # draw each line of the greeting
-            for i, word in enumerate(greeting[0][::-1]):
-                word_len = tft.draw_len(font[0], word)                          # width in pixels
-                col = 0 if word_len > width else (width//2 - word_len//2)       # column to center
-                row = (scroll + height - ((i + 1) * font[0].HEIGHT) % height)   # row to draw
-                tft.draw(font[0], word, col, row, color)                        # draw the word
+                # draw each line of the greeting
+                for i, word in enumerate(greeting[0][::-1]):
+                    word_len = tft.draw_len(font[0], word)                          # width in pixels
+                    col = 0 if word_len > width else (width//2 - word_len//2)       # column to center
+                    row = (scroll + height - ((i + 1) * font[0].HEIGHT) % height)   # row to draw
+                    tft.draw(font[0], word, col, row, color)                        # draw the word
 
-        tft.fill_rect(0, scroll, width, 1, st7789.BLACK)    # clear the top line
-        tft.vscsad(scroll+tfa)                              # scroll the display
-        scroll = (scroll+1) % height                        # update the scroll position
-        to_scroll -= 1                                      # update rows left to scroll
-        utime.sleep(0.02)                                   # stop and smell the roses
+            tft.fill_rect(0, scroll, width, 1, st7789.BLACK)    # clear the top line
+            tft.vscsad(scroll+tfa)                              # scroll the display
+            scroll = (scroll+1) % height                        # update the scroll position
+            to_scroll -= 1                                      # update rows left to scroll
+            utime.sleep(0.02)                                   # stop and smell the roses
 
+    finally:
+        tft.deinit()
 
 main()

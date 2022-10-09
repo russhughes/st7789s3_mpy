@@ -139,34 +139,36 @@ def main():
     Draw on screen using map_bitarray_to_rgb565
     '''
 
-    # enable display and clear screen
-    tft.init()
-    tft.fill(st7789.BLACK)
+    try:
+        # enable display and clear screen
+        tft.init()
+        tft.fill(st7789.BLACK)
 
-    # convert bitmaps into rgb565 blitable buffers
-    blitable = []
-    for sprite_bitmap in SPRITE_BITMAPS:
-        sprite = bytearray(512)
-        tft.map_bitarray_to_rgb565(
-            sprite_bitmap,
-            sprite,
-            SPRITE_WIDTH,
-            st7789.YELLOW,
-            st7789.BLACK)
-        blitable.append(sprite)
+        # convert bitmaps into rgb565 blitable buffers
+        blitable = []
+        for sprite_bitmap in SPRITE_BITMAPS:
+            sprite = bytearray(512)
+            tft.map_bitarray_to_rgb565(
+                sprite_bitmap,
+                sprite,
+                SPRITE_WIDTH,
+                st7789.YELLOW,
+                st7789.BLACK)
+            blitable.append(sprite)
 
-    sprite_count = tft.width() // SPRITE_WIDTH * tft.height() // SPRITE_HEIGHT // 4
+        sprite_count = tft.width() // SPRITE_WIDTH * tft.height() // SPRITE_HEIGHT // 4
 
-    # create pacman spites in random positions
-    sprites = []
-    for _ in range(sprite_count):
-        sprites.append(pacman(sprites, SPRITE_WIDTH, SPRITE_HEIGHT, SPRITE_STEPS))
+        # create pacman spites in random positions
+        sprites = [pacman(sprites, SPRITE_WIDTH, SPRITE_HEIGHT, SPRITE_STEPS) for _ in range(sprite_count)]
 
-    # move and draw sprites
-    while True:
-        for sprite in sprites:
-            sprite.move()
-            sprite.draw(blitable[sprite.step])
-        time.sleep(0.05)
+        # move and draw sprites
+        while True:
+            for sprite in sprites:
+                sprite.move()
+                sprite.draw(blitable[sprite.step])
+            time.sleep(0.05)
+
+    finally:
+        tft.deinit()
 
 main()

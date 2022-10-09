@@ -138,28 +138,31 @@ def main():
             if self.col and self.row:
                 tft.bitmap(self.bitmaps, self.col, self.row, self.frames[self.step])
 
+    try:
+        tft = tft_config.config(1, buffer_size=64*62*2)   # configure display driver
 
-    tft = tft_config.config(1, buffer_size=64*62*2)   # configure display driver
+        # init and clear screen
+        tft.init()
+        tft.fill(st7789.BLACK)
 
-    # init and clear screen
-    tft.init()
-    tft.fill(st7789.BLACK)
+        # create toast spites and set animation frames
+        sprites = []
+        sprites.append(Toast(sprites, toast_bitmaps, TOAST_FRAMES))
+        sprites.append(Toast(sprites, toast_bitmaps, TOASTER_FRAMES))
+        sprites.append(Toast(sprites, toast_bitmaps, TOASTER_FRAMES))
 
-    # create toast spites and set animation frames
-    sprites = []
-    sprites.append(Toast(sprites, toast_bitmaps, TOAST_FRAMES))
-    sprites.append(Toast(sprites, toast_bitmaps, TOASTER_FRAMES))
-    sprites.append(Toast(sprites, toast_bitmaps, TOASTER_FRAMES))
+        # move and draw sprites
 
-    # move and draw sprites
+        while True:
+            for sprite in sprites:
+                sprite.clear()
+                sprite.move(sprites)
+                sprite.draw()
 
-    while True:
-        for sprite in sprites:
-            sprite.clear()
-            sprite.move(sprites)
-            sprite.draw()
+            gc.collect()
+            time.sleep(0.01)
 
-        gc.collect()
-        time.sleep(0.01)
+    finally:
+        tft.deinit()
 
 main()

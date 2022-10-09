@@ -40,36 +40,39 @@ def main():
         "百闻不如一见",
         "不入虎穴，焉得虎子"]
 
-    # initialize display
-    tft.init()
-    line_height = font.HEIGHT+8
-    half_height = tft.height() // 2
-    half_width = tft.width() // 2
-    wheel = 0
+    try:
+        # initialize display
+        tft.init()
+        line_height = font.HEIGHT+8
+        half_height = tft.height() // 2
+        half_width = tft.width() // 2
+        wheel = 0
 
-    tft.fill(st7789.BLACK)
+        tft.fill(st7789.BLACK)
 
-    while True:
-        for proverb in proverbs:
-            proverb_lines = proverb.split('，')
-            half_lines_height = len(proverb_lines) * line_height // 2
+        while True:
+            for proverb in proverbs:
+                proverb_lines = proverb.split('，')
+                half_lines_height = len(proverb_lines) * line_height // 2
 
-            tft.fill(st7789.BLACK)
+                tft.fill(st7789.BLACK)
 
-            for count, proverb_line in enumerate(proverb_lines):
-                half_length = tft.write_len(font, proverb_line) // 2
+                for count, proverb_line in enumerate(proverb_lines):
+                    half_length = tft.write_len(font, proverb_line) // 2
 
-                tft.write(
-                    font,
-                    proverb_line,
-                    half_width - half_length,
-                    half_height - half_lines_height + count * line_height,
-                    color_wheel(wheel))
+                    tft.write(
+                        font,
+                        proverb_line,
+                        half_width - half_length,
+                        half_height - half_lines_height + count * line_height,
+                        color_wheel(wheel))
 
-            wheel = (wheel + 5) % 256
+                wheel = (wheel + 5) % 256
 
-            # pause to slow down scrolling
-            utime.sleep(5)
+                # pause to slow down scrolling
+                utime.sleep(5)
 
+    finally:
+        tft.deinit()
 
 main()

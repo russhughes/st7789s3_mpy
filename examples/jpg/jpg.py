@@ -18,8 +18,11 @@ def main():
     Decode and draw jpg on display
     '''
 
-    tft.init()
-    tft.jpg(f'bigbuckbunny-{tft.width()}x{tft.height()}.jpg', 0, 0, st7789.SLOW)
+    try:
+        tft.init()
+        tft.jpg(f'bigbuckbunny-{tft.width()}x{tft.height()}.jpg', 0, 0, st7789.SLOW)
 
+    finally:
+        tft.deinit()
 
 main()

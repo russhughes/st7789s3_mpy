@@ -23,19 +23,22 @@ def main():
     Decode and draw png on display
     '''
 
-    tft = tft_config.config(1, buffer_size=30*2)
+    try:
+        tft = tft_config.config(1, buffer_size=30*2)
 
-    # enable display and clear screen
-    tft.init()
+        # enable display and clear screen
+        tft.init()
 
-    # display png in random locations
-    while True:
-        tft.rotation(random.randint(0, 4))
-        tft.png(
-            "alien.png",
-            random.randint(0, tft.width() - 63),
-            random.randint(0, tft.height() - 63),
-            True)
+        # display png in random locations
+        while True:
+            tft.rotation(random.randint(0, 4))
+            tft.png(
+                "alien.png",
+                random.randint(0, tft.width() - 63),
+                random.randint(0, tft.height() - 63),
+                True)
 
+    finally:
+        tft.deinit()
 
 main()

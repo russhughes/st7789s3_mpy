@@ -231,137 +231,140 @@ def main():
 
         return False
 
-    # enable display and clear screen
-    tft.init()
-    tft.fill(st7789.BLACK)
-    width = tft.width()
-    height = tft.height()
+    try:
+        # enable display and clear screen
+        tft.init()
+        tft.fill(st7789.BLACK)
+        width = tft.width()
+        height = tft.height()
 
-    rad_max = 2 * math.pi               # 360' in radians
+        rad_max = 2 * math.pi               # 360' in radians
 
-    # ship variables
-    ship_alive = True
-    ship_radius = 7
-    ship_rad_frame = rad_max / 16       # turning rate per frame
-    ship_accel_frame = 0.6              # acceleration per frame
-    ship_drag_frame = 0.015             # drag factor per frame
+        # ship variables
+        ship_alive = True
+        ship_radius = 7
+        ship_rad_frame = rad_max / 16       # turning rate per frame
+        ship_accel_frame = 0.6              # acceleration per frame
+        ship_drag_frame = 0.015             # drag factor per frame
 
-    ship_poly = [(-7, -7), (7, 0), (-7, 7), (-3, 0), (-7, -7)]
+        ship_poly = [(-7, -7), (7, 0), (-7, 7), (-3, 0), (-7, -7)]
 
-    ship = Poly(
-        ship_poly,
-        x=width >> 1,
-        y=height >> 1,
-        v_x=0,
-        v_y=0,
-        radius=ship_radius,
-        spin=0.0)
+        ship = Poly(
+            ship_poly,
+            x=width >> 1,
+            y=height >> 1,
+            v_x=0,
+            v_y=0,
+            radius=ship_radius,
+            spin=0.0)
 
-    explosion_poly = [(-4, -4), (-4, 4), (4, 4), (4, -4), (-4, -4)]
+        explosion_poly = [(-4, -4), (-4, 4), (4, 4), (4, -4), (-4, -4)]
 
-    # asteroid variables
-    roid_radius = [5, 10, 16]
-    roid_scale = [0.33, 0.66, 1.0]
+        # asteroid variables
+        roid_radius = [5, 10, 16]
+        roid_scale = [0.33, 0.66, 1.0]
 
-    roid_poly = [
-        (-5, -15), (-2, -13), (11, -14), (15, -7), (14, 0),
-        (16, 5), (11, 16), (7, 16), (-7, 14), (-14, 7),
-        (-13, 1), (-14, -8), (-11, -15), (-5, -15)]
-    roids = []
+        roid_poly = [
+            (-5, -15), (-2, -13), (11, -14), (15, -7), (14, 0),
+            (16, 5), (11, 16), (7, 16), (-7, 14), (-14, 7),
+            (-13, 1), (-14, -8), (-11, -15), (-5, -15)]
+        roids = []
 
-    # missile variables
-    missile_velocity = 8
-    missile_max = 8
-    missile_life = 20
-    missile_rate = 200
-    missile_last = utime.ticks_ms()
-    missile_poly = [(-1, -1), (1, -1), (1, 1), (-1, 1), (-1, -1)]
-    missiles = []
+        # missile variables
+        missile_velocity = 8
+        missile_max = 8
+        missile_life = 20
+        missile_rate = 200
+        missile_last = utime.ticks_ms()
+        missile_poly = [(-1, -1), (1, -1), (1, 1), (-1, 1), (-1, -1)]
+        missiles = []
 
-    frame_time = 60                         # target frame rate delay
+        frame_time = 60                         # target frame rate delay
 
-    # game loop
-    while True:
-        last_frame = utime.ticks_ms()
+        # game loop
+        while True:
+            last_frame = utime.ticks_ms()
 
-        # add roids if there are none
-        if len(roids) == 0:
-            roids = [create_roid(2), create_roid(2)]
+            # add roids if there are none
+            if len(roids) == 0:
+                roids = [create_roid(2), create_roid(2)]
 
-        update_missiles()
+            update_missiles()
 
-        # Erase the ship
-        ship.draw(st7789.BLACK)
+            # Erase the ship
+            ship.draw(st7789.BLACK)
 
-        if ship_alive:
-            # if left button pressed
-            if buttons.left.value() == 0:
-                # rotate ship counter clockwise
-                ship.rotate(-ship_rad_frame)
+            if ship_alive:
+                # if left button pressed
+                if buttons.left.value() == 0:
+                    # rotate ship counter clockwise
+                    ship.rotate(-ship_rad_frame)
 
-            # if right button pressed
-            if buttons.right.value() == 0:
-                 # rotate ship clockwise
-                ship.rotate(ship_rad_frame)
+                # if right button pressed
+                if buttons.right.value() == 0:
+                    # rotate ship clockwise
+                    ship.rotate(ship_rad_frame)
 
-            # if hyperspace button pressed move ship to random location
-            if buttons.hyper and buttons.hyper.value() == 0:
-                diameter = ship.radius * 2
-                ship.x = random.randint(diameter, width - diameter)
-                ship.y = random.randint(diameter, height - diameter)
+                # if hyperspace button pressed move ship to random location
+                if buttons.hyper and buttons.hyper.value() == 0:
+                    diameter = ship.radius * 2
+                    ship.x = random.randint(diameter, width - diameter)
+                    ship.y = random.randint(diameter, height - diameter)
 
-                # stop movement
-                ship.velocity_x = 0.0
-                ship.velocity_y = 0.0
+                    # stop movement
+                    ship.velocity_x = 0.0
+                    ship.velocity_y = 0.0
 
-            # if thrust button pressed
-            if buttons.thrust.value() == 0:
-                # accelerate ship in the direction the ship is facing
-                d_y = math.sin(ship.angle) * ship_accel_frame
-                d_x = math.cos(ship.angle) * ship_accel_frame
-                ship.velocity_x += d_x
-                ship.velocity_y += d_y
+                # if thrust button pressed
+                if buttons.thrust.value() == 0:
+                    # accelerate ship in the direction the ship is facing
+                    d_y = math.sin(ship.angle) * ship_accel_frame
+                    d_x = math.cos(ship.angle) * ship_accel_frame
+                    ship.velocity_x += d_x
+                    ship.velocity_y += d_y
 
-            # if the fire button is pressed and less than missile_max active missles
-            if buttons.fire.value() == 0 and len(missiles) < missile_max:
+                # if the fire button is pressed and less than missile_max active missles
+                if buttons.fire.value() == 0 and len(missiles) < missile_max:
 
-                # limit missiles firing to once every missile_rate ms
-                if last_frame - missile_last > missile_rate:
+                    # limit missiles firing to once every missile_rate ms
+                    if last_frame - missile_last > missile_rate:
 
-                    # fire missile in direction ship in facing
-                    v_y = math.sin(ship.angle) * missile_velocity
-                    v_x = math.cos(ship.angle) * missile_velocity
+                        # fire missile in direction ship in facing
+                        v_y = math.sin(ship.angle) * missile_velocity
+                        v_x = math.cos(ship.angle) * missile_velocity
 
-                    # create new missile
-                    missile = Poly(
-                        missile_poly,
-                        x=ship.x,
-                        y=ship.y,
-                        v_x=v_x,
-                        v_y=v_y,
-                        angle=ship.angle,
-                        radius=1,
-                        spin=0.0,
-                        counter=missile_life)
+                        # create new missile
+                        missile = Poly(
+                            missile_poly,
+                            x=ship.x,
+                            y=ship.y,
+                            v_x=v_x,
+                            v_y=v_y,
+                            angle=ship.angle,
+                            radius=1,
+                            spin=0.0,
+                            counter=missile_life)
 
-                    # add to to missile list and save last fire time
-                    missiles.append(missile)
-                    missile_last = last_frame
+                        # add to to missile list and save last fire time
+                        missiles.append(missile)
+                        missile_last = last_frame
 
-            update_ship()
+                update_ship()
 
-        else:
-            # explosion animation until returns True
-            ship_alive = explode_ship()
+            else:
+                # explosion animation until returns True
+                ship_alive = explode_ship()
 
-        # update roids and return if ship was not hit
-        not_hit = update_roids()
-        if ship_alive:
-            ship_alive = not_hit
+            # update roids and return if ship was not hit
+            not_hit = update_roids()
+            if ship_alive:
+                ship_alive = not_hit
 
-        # wait until frame time expires
-        while utime.ticks_ms() - last_frame < frame_time:
-            pass
+            # wait until frame time expires
+            while utime.ticks_ms() - last_frame < frame_time:
+                pass
 
+    finally:
+        tft.deinit()
 
 main()

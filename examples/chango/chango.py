@@ -49,12 +49,15 @@ def display_font(font):
         column += width                         # move the column past the character
 
 def main():
-    tft.init()
-    tft.fill(st7789.BLUE)
+    try:
+        tft.init()
+        tft.fill(st7789.BLUE)
 
-    for font in [font_16, font_32, font_64]:    # for each font
-        display_font(font)                      # display the font characters
-        time.sleep(1)                           # pause for a second
+        for font in [font_16, font_32, font_64]:    # for each font
+            display_font(font)                      # display the font characters
+            time.sleep(1)                           # pause for a second
 
+    finally:
+        tft.deinit()
 
 main()

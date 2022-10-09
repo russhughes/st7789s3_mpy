@@ -35,13 +35,16 @@ def display_font(font, fast):
 def main():
     fast = False
 
-    tft.init()
+    try:
+        tft.init()
 
-    while True:
-        for font in [font_16, font_32, font_64]:
-            display_font(font, fast)
+        while True:
+            for font in [font_16, font_32, font_64]:
+                display_font(font, fast)
 
-        fast = not fast
+            fast = not fast
 
+    finally:
+        tft.deinit()
 
 main()

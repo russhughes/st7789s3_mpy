@@ -18,26 +18,31 @@ tft = tft_config.config(0)
 
 
 def main():
-    tft.init()
 
-    while True:
-        for font in (font1, font2, font3, font4):
-            tft.fill(st7789.BLUE)
-            line = 0
-            col = 0
-            for char in range(font.FIRST, font.LAST):
-                tft.text(font, chr(char), col, line, st7789.WHITE, st7789.BLUE)
-                col += font.WIDTH
-                if col > tft.width() - font.WIDTH:
-                    col = 0
-                    line += font.HEIGHT
+    try:
+        tft.init()
 
-                    if line > tft.height()-font.HEIGHT:
-                        utime.sleep(3)
-                        tft.fill(st7789.BLUE)
-                        line = 0
+        while True:
+            for font in (font1, font2, font3, font4):
+                tft.fill(st7789.BLUE)
+                line = 0
+                col = 0
+                for char in range(font.FIRST, font.LAST):
+                    tft.text(font, chr(char), col, line, st7789.WHITE, st7789.BLUE)
+                    col += font.WIDTH
+                    if col > tft.width() - font.WIDTH:
                         col = 0
+                        line += font.HEIGHT
 
-            utime.sleep(3)
+                        if line > tft.height()-font.HEIGHT:
+                            utime.sleep(3)
+                            tft.fill(st7789.BLUE)
+                            line = 0
+                            col = 0
+
+                utime.sleep(3)
+
+    finally:
+        tft.deinit()
 
 main()
