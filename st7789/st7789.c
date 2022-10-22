@@ -33,6 +33,8 @@
 #include <stdio.h>
 #include <string.h>
 #include "driver/dedic_gpio.h"
+#include "driver/gpio.h"
+
 #include "py/obj.h"
 #include "py/objstr.h"
 #include "py/objmodule.h"
@@ -74,68 +76,66 @@
 #define ABS(N) (((N) < 0) ? (-(N)) : (N))
 #define mp_hal_delay_ms(delay) (mp_hal_delay_us(delay * 1000))
 
-#define CS_LOW()                           \
-	{                                      \
-		if (self->cs) {                    \
-			mp_hal_pin_write(self->cs, 0); \
-		}                                  \
-	}
+static inline void pin_high(uint8_t pin)
+{
+    if (pin > 31) {
+        GPIO.out1_w1ts.val = (1 << ((pin - 32) & 31));
+    } else {
+        GPIO.out_w1ts = (1 << (pin & 31));
+    }
+}
 
-#define CS_HIGH()                          \
-	{                                      \
-		if (self->cs) {                    \
-			mp_hal_pin_write(self->cs, 1); \
-		}                                  \
-	}
+static inline void pin_low(uint8_t pin)
+{
+    if (pin > 31) {
+        GPIO.out1_w1tc.val = (1 << ((pin - 32) & 31));
+    } else {
+        GPIO.out_w1tc = (1 << (pin & 31));
+    }
+}
 
-#define DC_LOW() (mp_hal_pin_write(self->dc, 0))
-#define DC_HIGH() (mp_hal_pin_write(self->dc, 1))
+#define CS_LOW() pin_low(self->cs)
+#define CS_HIGH() pin_high(self->cs)
 
-#define WR_LOW() (mp_hal_pin_write(self->wr, 0))
-#define WR_HIGH() (mp_hal_pin_write(self->wr, 1))
+#define DC_LOW() pin_low(self->dc)
+#define DC_HIGH() pin_high(self->dc)
 
-#define RD_LOW() (mp_hal_pin_write(self->rd, 0))
-#define RD_HIGH() (mp_hal_pin_write(self->rd, 1))
+#define WR_LOW() pin_low(self->wr)
+#define WR_HIGH() pin_high(self->wr)
 
-#define RESET_LOW()                           \
-	{                                         \
-		if (self->reset)                      \
-			mp_hal_pin_write(self->reset, 0); \
-	}
+#define RD_LOW() pin_low(self->rd)
+#define RD_HIGH() pin_high(self->rd)
 
-#define RESET_HIGH()                          \
-	{                                         \
-		if (self->reset)                      \
-			mp_hal_pin_write(self->reset, 1); \
-	}
+#define RESET_LOW() pin_low(self->reset)
+#define RESET_HIGH() pin_high(self->reset)
 
 //
 // dedicated GPIOs
 //
 
-#define TFT_D0	GPIO_NUM_39
-#define TFT_D1	GPIO_NUM_40
-#define TFT_D2	GPIO_NUM_41
-#define TFT_D3	GPIO_NUM_42
-#define TFT_D4	GPIO_NUM_45
-#define TFT_D5	GPIO_NUM_46
-#define TFT_D6	GPIO_NUM_47
-#define TFT_D7	GPIO_NUM_48
+#define TFT_D0 GPIO_NUM_39
+#define TFT_D1 GPIO_NUM_40
+#define TFT_D2 GPIO_NUM_41
+#define TFT_D3 GPIO_NUM_42
+#define TFT_D4 GPIO_NUM_45
+#define TFT_D5 GPIO_NUM_46
+#define TFT_D6 GPIO_NUM_47
+#define TFT_D7 GPIO_NUM_48
 
-int GPIOBundle_gpios[8] = {TFT_D0,TFT_D1,TFT_D2,TFT_D3,TFT_D4,TFT_D5,TFT_D6,TFT_D7};
+int GPIOBundle_gpios[8] = {TFT_D0, TFT_D1, TFT_D2, TFT_D3, TFT_D4, TFT_D5, TFT_D6, TFT_D7};
 
 gpio_config_t io_conf = {
-    .mode = GPIO_MODE_OUTPUT,
+	.mode = GPIO_MODE_OUTPUT,
 };
 
 // Create GPIOBundle, output only
 dedic_gpio_bundle_handle_t GPIOBundle = NULL;
 dedic_gpio_bundle_config_t GPIOBundle_config = {
-    .gpio_array = GPIOBundle_gpios,
-    .array_size = sizeof(GPIOBundle_gpios) / sizeof(GPIOBundle_gpios[0]),
-    .flags = {
-        .out_en = 1,
-    },
+	.gpio_array = GPIOBundle_gpios,
+	.array_size = sizeof(GPIOBundle_gpios) / sizeof(GPIOBundle_gpios[0]),
+	.flags = {
+		.out_en = 1,
+	 },
 };
 
 //
@@ -182,18 +182,10 @@ st7789_rotation_t ORIENTATIONS_128x128[4] = {
 	{0xc0, 128, 128, 2, 3},
 	{0xa0, 128, 128, 3, 2}};
 
-STATIC void write_bus(st7789_ST7789_obj_t *self, const uint8_t *buf, int len)
+STATIC void write_bus(st7789_ST7789_obj_t *self, const uint8_t *buf, long len)
 {
-	static int last = 0;
-	uint8_t	   b;
-
-	for (int i = 0; i < len; i++) {
-		b = buf[i];
-
-		if (b != last) {
-		    dedic_gpio_bundle_write(GPIOBundle,0xff,b);
-			last = b;
-		}
+	for (long i = 0; i < len; i++) {
+		__asm__ __volatile__ ("wur.gpio_out %0" : : "r"(buf[i]));
 		WR_LOW();
 		WR_HIGH();
 	}
@@ -208,7 +200,7 @@ STATIC void st7789_ST7789_print(const mp_print_t *print, mp_obj_t self_in, mp_pr
 
 STATIC void write_cmd(st7789_ST7789_obj_t *self, uint8_t cmd, const uint8_t *data, int len)
 {
-	CS_LOW()
+	CS_LOW();
 	if (cmd) {
 		DC_LOW();
 		write_bus(self, &cmd, 1);
@@ -218,7 +210,7 @@ STATIC void write_cmd(st7789_ST7789_obj_t *self, uint8_t cmd, const uint8_t *dat
 		DC_HIGH();
 		write_bus(self, data, len);
 	}
-	CS_HIGH()
+	CS_HIGH();
 }
 
 STATIC void set_window(st7789_ST7789_obj_t *self, uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
@@ -250,24 +242,17 @@ STATIC void set_window(st7789_ST7789_obj_t *self, uint16_t x0, uint16_t y0, uint
 
 STATIC void fill_color_buffer(st7789_ST7789_obj_t *self, uint16_t color, long length)
 {
-	const int buffer_pixel_size = 128;
-	int		  chunks			= length / buffer_pixel_size;
-	int		  rest				= length % buffer_pixel_size;
-	uint16_t  color_swapped		= _swap_bytes(color);
-	uint16_t  buffer[buffer_pixel_size]; // 128 pixels
+	uint16_t color_swapped	= _swap_bytes(color);
+	uint8_t high = color_swapped >> 8;
+	uint8_t low	= color_swapped & 0xFF;
 
-	// fill buffer with color data
-
-	for (long i = 0; i < length && i < buffer_pixel_size; i++) {
-		buffer[i] = color_swapped;
-	}
-	if (chunks) {
-		for (long j = 0; j < chunks; j++) {
-			write_bus(self, (uint8_t *) buffer, buffer_pixel_size * 2);
-		}
-	}
-	if (rest) {
-		write_bus(self, (uint8_t *) buffer, rest * 2);
+	for (long i = 0; i < length; i++) {
+		dedic_gpio_bundle_write(GPIOBundle, 0xff, low);
+		WR_LOW();
+		WR_HIGH();
+		dedic_gpio_bundle_write(GPIOBundle, 0xff, high);
+		WR_LOW();
+		WR_HIGH();
 	}
 }
 
@@ -1208,28 +1193,30 @@ STATIC mp_obj_t st7789_ST7789_vscsad(mp_obj_t self_in, mp_obj_t vssa_in)
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_2(st7789_ST7789_vscsad_obj, st7789_ST7789_vscsad);
 
-
 STATIC mp_obj_t st7789_ST7789_init(mp_obj_t self_in)
 {
 	st7789_ST7789_obj_t *self = MP_OBJ_TO_PTR(self_in);
 
+
+	// GPIO.out1_w1ts.val = (1 << (TFT_D0 - 32));
+
+
 	CS_HIGH();
-    DC_HIGH();
+	DC_HIGH();
 	WR_HIGH();
 	RD_HIGH();
 
 	// configure dedicated GPIO pins
-	for (int i = 0; i < sizeof(GPIOBundle_gpios) / sizeof(GPIOBundle_gpios[0]); i++)
-	{
-    	io_conf.pin_bit_mask = 1ULL << GPIOBundle_gpios[i];
-    	gpio_config(&io_conf);
+	for (int i = 0; i < sizeof(GPIOBundle_gpios) / sizeof(GPIOBundle_gpios[0]); i++) {
+		io_conf.pin_bit_mask = 1ULL << GPIOBundle_gpios[i];
+		gpio_config(&io_conf);
 	}
 
 	// create dedicated GPIO bundle
 	dedic_gpio_new_bundle(&GPIOBundle_config, &GPIOBundle);
 
-    // Set all 8 bits low
-    dedic_gpio_bundle_write(GPIOBundle,0xff,0x00);
+	// Set all 8 bits low
+	dedic_gpio_bundle_write(GPIOBundle, 0xff, 0x00);
 
 	st7789_ST7789_hard_reset(self_in);
 	write_cmd(self, ST7789_SLPOUT, NULL, 0);
@@ -1259,7 +1246,7 @@ STATIC mp_obj_t st7789_ST7789_init(mp_obj_t self_in)
 	st7789_ST7789_fill_rect(6, args);
 
 	if (self->backlight)
-		mp_hal_pin_write(self->backlight, 1);
+		pin_high(self->backlight);
 
 	write_cmd(self, ST7789_DISPON, NULL, 0);
 	mp_hal_delay_ms(150);
@@ -1273,7 +1260,7 @@ STATIC mp_obj_t st7789_ST7789_on(mp_obj_t self_in)
 	st7789_ST7789_obj_t *self = MP_OBJ_TO_PTR(self_in);
 
 	if (self->backlight) {
-		mp_hal_pin_write(self->backlight, 1);
+		pin_low(self->backlight);
 		mp_hal_delay_ms(10);
 	}
 
@@ -1286,7 +1273,7 @@ STATIC mp_obj_t st7789_ST7789_off(mp_obj_t self_in)
 	st7789_ST7789_obj_t *self = MP_OBJ_TO_PTR(self_in);
 
 	if (self->backlight) {
-		mp_hal_pin_write(self->backlight, 0);
+		pin_low(self->backlight);
 		mp_hal_delay_ms(10);
 	}
 
@@ -1781,7 +1768,7 @@ STATIC mp_obj_t st7789_ST7789_jpg_decode(size_t n_args, const mp_obj_t *args)
 				devid.right	 = x + width - 1;
 				devid.bottom = y + height - 1;
 
-				bufsize			 = 2 * width * height;
+				bufsize			   = 2 * width * height;
 				self->pixel_buffer = m_malloc(bufsize);
 				if (self->pixel_buffer) {
 					memset(self->pixel_buffer, 0xBEEF, bufsize);
@@ -1847,7 +1834,7 @@ void pngle_on_draw(pngle_t *pngle, uint32_t x, uint32_t y, uint32_t w, uint32_t 
 	if (user_data->pixels == 0) {
 		// if no existing buffer, create one to hold a complete line
 		if (self->buffer_size == 0) {
-			buf_size		 = ihdr->width * 2;
+			buf_size		   = ihdr->width * 2;
 			self->pixel_buffer = m_malloc(buf_size);
 			if (!self->pixel_buffer) {
 				mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("out of memory"));
@@ -1915,7 +1902,7 @@ void pngle_on_draw_transparent(pngle_t *pngle, uint32_t x, uint32_t y, uint32_t 
 	if (user_data->pixels == 0) {
 		// if no existing buffer, create one to hold a complete line
 		if (self->buffer_size == 0) {
-			buf_size		 = ihdr->width * 2;
+			buf_size		   = ihdr->width * 2;
 			self->pixel_buffer = m_malloc(buf_size);
 			if (!self->pixel_buffer) {
 				mp_raise_msg(&mp_type_OSError, MP_ERROR_TEXT("out of memory"));
@@ -2373,7 +2360,6 @@ STATIC mp_obj_t st7789_ST7789_deinit(size_t n_args, const mp_obj_t *args)
 	return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(st7789_ST7789_deinit_obj, 1, 1, st7789_ST7789_deinit);
-
 
 STATIC const mp_rom_map_elem_t st7789_ST7789_locals_dict_table[] = {
 	{MP_ROM_QSTR(MP_QSTR_write), MP_ROM_PTR(&st7789_ST7789_write_obj)},
