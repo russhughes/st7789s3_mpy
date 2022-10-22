@@ -2,17 +2,14 @@
 hello.py
 
     Writes "Hello!" in random colors at random locations on the display.
-    
+
 """
 
-from machine import freq
 import random
 import utime
 import st7789
 import tft_config
 import vga1_bold_16x32 as font
-
-freq(240000000)  # 240mhz clock
 
 tft = tft_config.config(0, buffer_size=64*64*2)
 

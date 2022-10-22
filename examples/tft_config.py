@@ -1,7 +1,9 @@
 """ LilyGo T-DISPLAY-S3 170x320 ST7789 display """
 
-from machine import Pin, SPI
+from machine import Pin, SPI, freq
 import st7789
+
+freq(240000000)  # 240mhz clock
 
 TFA = 0
 BFA = 0
