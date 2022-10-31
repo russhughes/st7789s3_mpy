@@ -185,7 +185,7 @@ st7789_rotation_t ORIENTATIONS_128x128[4] = {
 STATIC void write_bus(st7789_ST7789_obj_t *self, const uint8_t *buf, long len)
 {
 	for (long i = 0; i < len; i++) {
-		__asm__ __volatile__ ("wur.gpio_out %0" : : "r"(buf[i]));
+	    dedic_gpio_bundle_write(GPIOBundle,0xff,buf[i]);
 		WR_LOW();
 		WR_HIGH();
 	}
