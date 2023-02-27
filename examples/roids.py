@@ -4,12 +4,13 @@ roids.py - Asteroids style game demo using polygons.
 
 import math
 import random
-import utime
-import micropython
-import st7789
-import tft_config
-import tft_buttons as Buttons
 
+import micropython
+import tft_buttons as Buttons
+import tft_config
+import utime
+
+import st7789
 
 tft = tft_config.config(1, buffer_size=64*64*2)
 buttons = Buttons.Buttons()
@@ -231,6 +232,13 @@ def main():
 
         return False
 
+    def both_buttons_pressed():
+        '''
+        Returns True if both buttons are pressed
+        '''
+        return not buttons.left.value() and not buttons.right.value()
+
+
     try:
         # enable display and clear screen
         tft.init()
@@ -316,7 +324,7 @@ def main():
                     ship.velocity_y = 0.0
 
                 # if thrust button pressed
-                if buttons.thrust.value() == 0:
+                if buttons.thrust and buttons.thrust.value() == 0:
                     # accelerate ship in the direction the ship is facing
                     d_y = math.sin(ship.angle) * ship_accel_frame
                     d_x = math.cos(ship.angle) * ship_accel_frame
@@ -324,30 +332,30 @@ def main():
                     ship.velocity_y += d_y
 
                 # if the fire button is pressed and less than missile_max active missles
-                if buttons.fire.value() == 0 and len(missiles) < missile_max:
+                if (buttons.fire and buttons.fire.value() == 0 or
+                    buttons.fire == 0 and both_buttons_pressed() and
+                    len(missiles) < missile_max and
+                    last_frame - missile_last > missile_rate):
 
-                    # limit missiles firing to once every missile_rate ms
-                    if last_frame - missile_last > missile_rate:
+                    # fire missile in direction ship in facing
+                    v_y = math.sin(ship.angle) * missile_velocity
+                    v_x = math.cos(ship.angle) * missile_velocity
 
-                        # fire missile in direction ship in facing
-                        v_y = math.sin(ship.angle) * missile_velocity
-                        v_x = math.cos(ship.angle) * missile_velocity
+                    # create new missile
+                    missile = Poly(
+                        missile_poly,
+                        x=ship.x,
+                        y=ship.y,
+                        v_x=v_x,
+                        v_y=v_y,
+                        angle=ship.angle,
+                        radius=1,
+                        spin=0.0,
+                        counter=missile_life)
 
-                        # create new missile
-                        missile = Poly(
-                            missile_poly,
-                            x=ship.x,
-                            y=ship.y,
-                            v_x=v_x,
-                            v_y=v_y,
-                            angle=ship.angle,
-                            radius=1,
-                            spin=0.0,
-                            counter=missile_life)
-
-                        # add to to missile list and save last fire time
-                        missiles.append(missile)
-                        missile_last = last_frame
+                    # add to to missile list and save last fire time
+                    missiles.append(missile)
+                    missile_last = last_frame
 
                 update_ship()
 

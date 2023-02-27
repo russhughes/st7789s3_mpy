@@ -1,14 +1,19 @@
 """
 pinball.py - Minimal pinball game in MicroPython based on code from Ten Minute Physics Tutorial
-"How to write a pinball simulation" for the T-Display-S3 using the display driver from
-https://github.com/russhughes/st7789s3_mpy.
+"How to write a pinball simulation" for using the display driver from
+https://github.com/russhughes/st7789_mpy.
 
 Tutorial Links:
 https://matthias-research.github.io/pages/tenMinutePhysics/
 https://youtu.be/NhVUCsXp-Uo
 
-GamePlay Video:
+Gameplay Video:
 https://youtu.be/y0B3i_UmEU8
+
+Requires:
+    tft_config.py for display configuration. See examples/configs
+    tft_buttons.py for button configuration. See examples/configs
+    OR modify the code for your own display and buttons.
 
 This file incorporates work covered by the following copyright and permission notice.
 Modifications and additions Copyright (c) 2022 Russ Hughes and released under the same
@@ -46,6 +51,7 @@ import vga1_8x8 as font
 import vga1_bold_16x32 as bold_font
 import st7789
 import tft_config
+import tft_buttons
 
 
 def color_wheel(WheelPos):
@@ -63,14 +69,22 @@ def color_wheel(WheelPos):
     return st7789.color565(WheelPos * 3, 255 - WheelPos * 3, 0)
 
 
+def text_color():
+    """return the next color from the color wheel"""
+    color = 0
+    while True:
+        yield color_wheel(color)
+        color = (color + 1) % 255
+
+
 def scale_x(pos):
     """scale position to screen x coordinate"""
-    return int(pos.x * SCALE)
+    return int(pos.x * SCALE_X)
 
 
 def scale_y(pos):
     """scale position to screen y coordinate"""
-    return int(HEIGHT - pos.y * SCALE)
+    return int(HEIGHT - pos.y * SCALE_Y)
 
 
 def pos_to_tuple(pos):
@@ -78,7 +92,7 @@ def pos_to_tuple(pos):
     return (scale_x(pos), scale_y(pos))
 
 
-# vector math -------------------------------------------------------
+# vector math ---------------------------------------
 
 
 class Vector2:
@@ -141,7 +155,7 @@ class Vector2:
         """return a perpendicular vector"""
         return Vector2(-self.y, self.x, self.color)
 
-# ----------------------------------------------------------------------
+# ----------------------------------------------
 
 
 def closest_point_on_segment(p, a, b):
@@ -155,7 +169,7 @@ def closest_point_on_segment(p, a, b):
     closest = a.clone()
     return closest.add(ab, t)
 
-# object classes -------------------------------------------------------
+# object classes ---------------------------------------
 
 
 class Ball:
@@ -169,7 +183,7 @@ class Ball:
         self.pos = pos.clone()
         self.last = pos.clone()
         self.vel = vel.clone()
-        self.size = int(radius * SCALE)
+        self.size = int(radius * SCALE_RADIUS)
 
     def simulate(self, dt, gravity):
         """update the ball position in dt seconds"""
@@ -184,7 +198,7 @@ class Obstacle:
     def __init__(self, radius, pos, pushVel):
         """create a new obstacle"""
         self.radius = radius
-        self.size = int(radius * SCALE)
+        self.size = int(radius * SCALE_RADIUS)
         self.pos = pos.clone()
         self.pushVel = pushVel
 
@@ -198,7 +212,7 @@ class Flipper:
 
         # fixed
         self.radius = radius
-        self.size = int(radius * SCALE)
+        self.size = int(radius * SCALE_RADIUS)
         self.pos = pos.clone()
         self.length = length
         self.restAngle = restAngle
@@ -298,8 +312,8 @@ class Table():
 
     def __init__(self):
         """create a new table"""
-        self.gravity = Vector2(0.0, -0.60)
-        self.dt = 1.0 / 45.0
+        self.gravity = Vector2(0.0, -0.80)
+        self.dt = 1.0 / FPS
         self.ticks = int(self.dt * 1000)
         self.game_over = False
         self.score = 0
@@ -353,7 +367,7 @@ class Table():
         length = 0.175
         maxRotation = 1.0
         restAngle = 0.5
-        angularVelocity = 10.0
+        angularVelocity = FLIPPER_SPEED
 
         left_pos = Vector2(0.26, 0.22)
         right_pos = Vector2(0.74, 0.22)
@@ -370,10 +384,9 @@ class Table():
         self.ball = 3
         self.score = 0
 
-        print_at("Score:", 0.75, 0.14, st7789.WHITE)
-        update_score()
+        print_right("M  ", 0.25)
 
-        print_at("Ball",  0.04, 0.14, st7789.WHITE)
+        update_score()
         update_ball()
 
     def add_ball(self):
@@ -387,6 +400,11 @@ class Table():
     def ball_reset(self):
         """reset the ball"""
         table.multiball = 0
+        if REDRAW_EVERY_FRAME is False:
+            self.draw_border()
+            self.draw_obstacles()
+            self.draw_flippers()
+
         update_ball()
         update_score()
         ball_countdown()
@@ -453,7 +471,7 @@ class Table():
                     self.game_over = True
 
 
-# -------------------- collision handling --------------------
+# ------------ collision handling ------------
 
 
 def handle_ball_ball_collision(ball1, ball2):
@@ -489,7 +507,7 @@ def handle_ball_ball_collision(ball1, ball2):
     ball2.vel.add(direction, newV2 - v2)
 
 
-# ----------------------------------------
+# ------------------------
 
 
 def handle_ball_obstacle_collision(ball, obstacle):
@@ -517,7 +535,7 @@ def handle_ball_obstacle_collision(ball, obstacle):
             table.multiball = 0
             table.add_ball()
 
-# ----------------------------------------
+# ------------------------
 
 
 def handle_ball_flipper_collision(ball, flipper):
@@ -544,7 +562,7 @@ def handle_ball_flipper_collision(ball, flipper):
     vnew = surfaceVel.dot(direction)
     ball.vel.add(direction, vnew - v)
 
-# ----------------------------------------
+# ------------------------
 
 
 def handle_ball_border_collision(ball, border):
@@ -594,39 +612,63 @@ def handle_ball_border_collision(ball, border):
     return wall
 
 
-# -------------------- Text routines --------------------
+# ------------ Text routines ------------
+
+
+def center_on(text, y, color=st7789.WHITE, fnt=font):
+    """center text on y"""
+    x = (WIDTH >> 1) - ((fnt.WIDTH * len(text)) >> 1)
+    tft.text(fnt, text, x, int(HEIGHT - y * SCALE_Y), color, BACKGROUND)
 
 
 def print_at(text, x, y, color=st7789.WHITE, fnt=font):
     """print text at x,y"""
-    tft.text(fnt, text, int(x * SCALE),
-             int(HEIGHT - y * SCALE), color, BACKGROUND)
+    tft.text(fnt, text, int(x * SCALE_X),
+             int(HEIGHT - y * SCALE_Y), color, BACKGROUND)
+
+
+def print_right(text, y, color=st7789.WHITE, fnt=font):
+    """print text right aligned at y"""
+    x = WIDTH - (fnt.WIDTH * len(text))
+    tft.text(fnt, text, x, int(HEIGHT - y * SCALE_Y), color, BACKGROUND)
 
 
 def update_score():
     """update the score"""
-    tft.text(font, f'{table.score:05}', SCORE_X, SCORE_Y, 0xFFFF, BACKGROUND)
-    tft.text(font, f'MB{MULTIBALL_SCORE-table.multiball:02}',
-             MULTIBALL_X, MULTIBALL_Y, 0xFFFF, BACKGROUND)
+    print_right(f'{MULTIBALL_SCORE-table.multiball:2}', 0.25)
+    print_right(f'{table.score:04}', 0.08)
 
 
 def update_ball():
     """update the ball count"""
-    tft.text(font, f'{table.ball:02}', BALL_X, SCORE_Y, 0xFFFF, BACKGROUND)
+    print_at(f'B {table.ball}', 0.0, 0.08)
 
 
 def ball_countdown():
     """countdown before the ball is released"""
     for i in range(3, 0, -1):
-        print_at(f'{i}', 0.45, 1.3, st7789.WHITE, bold_font)
+        center_on(f'{i}', 1.3, st7789.WHITE, bold_font)
         time.sleep(1)
 
-    print_at(' ', 0.45, 1.3, st7789.WHITE, bold_font)
+    center_on(' ', 1.3, st7789.WHITE, bold_font)
+    if REDRAW_EVERY_FRAME is False:
+        table.draw_border()
+        table.draw_obstacles()
+
+
+def print_game_over(color=st7789.RED):
+    """print game over"""
+    center_on("GAME", 1.65, color, bold_font)
+    center_on("OVER", 1.30, color, bold_font)
+    center_on(" Press ", 0.82, color, font)
+    center_on(" Button ", 0.72, color, font)
+    center_on(" To ",  0.62, color, font)
+    center_on(" Start ", 0.52, color, font)
 
 
 def game_over():
     """game over, man, game over"""
-    print_at("GAME OVER", 0.07, 1.05, st7789.RED, bold_font)
+    print_game_over()
     time.sleep(1)
 
     # wait for buttons to be released
@@ -634,17 +676,16 @@ def game_over():
         time.sleep(0.1)
 
     # Color cycle game over message while waitiing for a button to be pressed
-    wheel = 0
+    color = text_color()
+
     while (left_flipper.value() and right_flipper.value()):
-        print_at("GAME OVER", 0.07, 1.05, color_wheel(wheel), bold_font)
-        print_at("Press to Start", 0.15, 0.72, color_wheel(wheel), font)
-        wheel = (wheel + 1) % 256
+        print_game_over(next(color))
         time.sleep(0.01)
 
     tft.fill(BACKGROUND)
 
 
-# -------------------- the big show --------------------
+# ------------ the big show ------------
 
 
 def start_game():
@@ -660,11 +701,13 @@ def start_game():
 
                 table.flippers[0].pressed = left_flipper.value() == 0
                 table.flippers[1].pressed = right_flipper.value() == 0
-
                 table.simulate()
+
+                if REDRAW_EVERY_FRAME:
+                    table.draw_border()
+                    table.draw_obstacles()
+
                 table.draw_flippers()
-                table.draw_border()
-                table.draw_obstacles()
                 table.draw_balls()
                 update_score()
 
@@ -674,13 +717,23 @@ def start_game():
             game_over()
 
     finally:
-        tft.deinit()
+        if hasattr(tft, "deinit") and callable(tft.deinit):
+            tft.deinit()
 
-# -------------------- set constants  --------------------
+# ------------ set constants  ------------
+
+#
+#   Adjust these constants to change the game play
+#
 
 
-MULTIBALL_SCORE = const(30)
-BACKGROUND = st7789.BLUE
+FPS = const(30)                 # frames per second
+FLIPPER_SPEED = const(10)       # flipper speed
+MULTIBALL_SCORE = const(30)     # points to start multiball
+BACKGROUND = st7789.BLUE        # My favorite color
+REDRAW_EVERY_FRAME = True
+
+# ------------ set up the display ------------
 
 tft = tft_config.config(0)
 tft.init()
@@ -688,18 +741,53 @@ tft.fill(BACKGROUND)
 
 HEIGHT = tft.height()
 WIDTH = tft.width()
-MAX_HEIGHT = const(1.88)
-SCALE = HEIGHT / MAX_HEIGHT
-SIM_WIDTH = WIDTH / SCALE
-SIM_HEIGHT = HEIGHT / SCALE
-BALL_X = int(0.09 * SCALE)
-SCORE_X = int(0.75 * SCALE)
-SCORE_Y = HEIGHT - int(0.08 * SCALE)
-MULTIBALL_X = int(0.80 * SCALE)
-MULTIBALL_Y = HEIGHT - int(0.20 * SCALE)
+MAX_HEIGHT = 1.88
+
+SCALE_X = WIDTH
+SCALE_Y = HEIGHT / MAX_HEIGHT
+SCALE_RADIUS = min(SCALE_X, SCALE_Y)
+
+# ------------ tft_buttons.py configs for different devices ------------
+
+buttons = tft_buttons.Buttons()
+
+if buttons.name == 'tdisplay_esp32':
+    left_flipper = buttons.left
+    right_flipper = buttons.right
+
+    # results in table corruption but is playable
+    REDRAW_EVERY_FRAME = False
+
+elif buttons.name == 'tdisplay_rp2040':
+    left_flipper = buttons.left
+    right_flipper = buttons.right
+
+elif buttons.name == 't-display-s3':
+    left_flipper = buttons.left
+    right_flipper = buttons.right
+
+elif buttons.name == 'ws_pico_114':
+    left_flipper = buttons.key3
+    right_flipper = buttons.key2
+
+elif buttons.name == 'ws_pico_13':
+    left_flipper = buttons.y
+    right_flipper = buttons.a
+
+elif buttons.name == 'ws_pico_2':
+    left_flipper = buttons.key2
+    right_flipper = buttons.key1
+
+elif buttons.name == 'wio_terminal':
+    left_flipper = buttons.center
+    right_flipper = buttons.button1
+
+elif buttons.name == 't-dongle-s3':     # not practical, but why not
+
+    left_flipper = buttons.button
+    right_flipper = buttons.button
+    REDRAW_EVERY_FRAME = False
+
 
 table = Table()
-left_flipper = Pin(0, Pin.IN)
-right_flipper = Pin(14, Pin.IN)
-
 start_game()

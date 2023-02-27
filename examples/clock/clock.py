@@ -19,8 +19,10 @@ import utime
 from machine import Pin, SPI, RTC
 import st7789
 import tft_config
+import tft_buttons
 import pacifico90 as font
 
+buttons = tft_buttons.Buttons()
 
 tft = tft_config.config(1)
 rtc = RTC()
@@ -102,8 +104,8 @@ def main():
         # change these to match your button connections
         #
 
-        # Button(pin=Pin(14, mode=Pin.IN, pull=Pin.PULL_UP), callback=hour_pressed)
-        # Button(pin=Pin(0, mode=Pin.IN, pull=Pin.PULL_UP), callback=minute_pressed)
+        Button(pin=buttons.left, callback=hour_pressed)
+        Button(pin=buttons.right, callback=minute_pressed)
 
         while True:
 
