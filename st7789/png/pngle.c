@@ -42,7 +42,7 @@
 #include "py/runtime.h"
 #include "py/builtin.h"
 #include "py/mphal.h"
-#include "extmod/machine_spi.h"
+#include "extmod/modmachine.h"
 #include "mpfile.h"
 
 #include "st7789.h"

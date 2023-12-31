@@ -32,6 +32,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
+#include "hal/gpio_ll.h"
 #include "driver/dedic_gpio.h"
 #include "driver/gpio.h"
 
@@ -41,7 +42,7 @@
 #include "py/runtime.h"
 #include "py/builtin.h"
 #include "py/mphal.h"
-#include "extmod/machine_spi.h"
+#include "extmod/modmachine.h"
 
 #include "mpfile.h"
 #include "st7789.h"
