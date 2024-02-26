@@ -34,14 +34,21 @@
 #include <string.h>
 #include "driver/dedic_gpio.h"
 #include "driver/gpio.h"
-
+#include "soc/gpio_struct.h"
 #include "py/obj.h"
 #include "py/objstr.h"
 #include "py/objmodule.h"
 #include "py/runtime.h"
 #include "py/builtin.h"
 #include "py/mphal.h"
+
+// Fix for MicroPython > 1.21 https://github.com/ricksorensen
+#if MICROPY_VERSION_MAJOR >= 1 && MICROPY_VERSION_MINOR > 21
+#include "soc/gpio_struct.h"
+#include "extmod/modmachine.h"
+#else
 #include "extmod/machine_spi.h"
+#endif
 
 #include "mpfile.h"
 #include "st7789.h"
